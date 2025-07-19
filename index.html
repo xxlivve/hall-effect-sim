@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>霍尔效应</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
+        }
+        #control-panel {
+            position: absolute;
+            right: 30px;
+            top: 30px;
+            width: 360px;
+            background: rgba(255,255,255,0.98);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            z-index: 100;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .control-group {
+            margin: 18px 0;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin: 12px 0;
+            position: relative;
+        }
+        .slider-label {
+            width: 130px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 15px;
+        }
+        input[type="range"] {
+            margin: 0 12px;
+            height: 10px;
+            border-radius: 5px;
+            background: #e0e5ec;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .value-display {
+            width: 75px;
+            text-align: right;
+            font-weight: bold;
+            color: #e74c3c;
+            font-family: 'Consolas', monospace;
+            font-size: 15px;
+        }
+        #formula-box {
+            background: linear-gradient(to right, #eaf7fd, #f0f9ff);
+            padding: 18px;
+            border-radius: 10px;
+            margin: 25px 0;
+            font-family: 'Consolas', monospace;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 12px 20px;
+            margin: 10px;
+            background: linear-gradient(to right, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .mode-active {
+            background: linear-gradient(to right, #2ecc71, #27ae60);
+            box-shadow: 0 0 0 4px rgba(46,204,113,0.25);
+        }
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(0,0,0,0.05);
+            letter-spacing: 0.5px;
+        }
+        select {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            width: 100%;
+            background: white;
+            font-size: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        #formula-text {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        #voltage-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="control-panel">
+        <h2>霍尔效应控制台</h2>
+        
+        <div class="control-group">
+            <div class="slider-container">
+                <span class="slider-label">模式:</span>
+                <button id="auto-btn">自动演示</button>
+                <button id="manual-btn" class="mode-active">手动控制</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="slider-container">
+                <span class="slider-label">材料类型:</span>
+                <select id="material">
+                    <option value="silicon">硅 (n型)</option>
+                    <option value="germanium" selected>锗</option>
+                    <option value="gaas">砷化镓</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="slider-container">
+                <span class="slider-label">霍尔电流 (mA):</span>
+                <input type="range" id="ih-slider" min="-50" max="50" step="0.1" value="-50">
+                <span id="ih-value" class="value-display">-50.0</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="slider-container">
+                <span class="slider-label">励磁电流 (mA):</span>
+                <input type="range" id="im-slider" min="-1000" max="1000" step="10" value="400">
+                <span id="im-value" class="value-display">400</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="slider-container">
+                <span class="slider-label">样品厚度 (mm):</span>
+                <input type="range" id="thickness-slider" min="0.1" max="2" step="0.1" value="0.5">
+                <span id="thickness-value" class="value-display">0.5</span>
+            </div>
+        </div>
+        
+        <div id="formula-box">
+            <div id="formula-text">
+                <div style="font-weight: bold; margin-bottom: 8px;">霍尔电压公式:</div>
+                V<sub>H</sub> = (I<sub>H</sub> × B) / (n × e × d)<br>
+                <div style="margin-top: 15px; font-weight: bold;">当前值: <span id="vh-display">260091552.23</span> mV</div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 25px;">
+            <button id="reset-btn">重置参数</button>
+            <button id="screenshot">保存截图</button>
+        </div>
+    </div>
+
+    <script>
+        // 初始化场景
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf8f9fa);
+        
+        // 相机设置
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(20, 14, 20);
+        camera.lookAt(0, 0, 0);
+        
+        // 渲染器
+        const renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            alpha: true
+        });
+        renderer.setPixelRatio(window.devicePixelRatio * 2);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        // 光源系统
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+        scene.add(ambientLight);
+        
+        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
+        directionalLight1.position.set(12, 18, 12);
+        directionalLight1.castShadow = true;
+        scene.add(directionalLight1);
+        
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight2.position.set(-12, -18, -12);
+        scene.add(directionalLight2);
+        
+        // 动态尺寸模型参数
+        const hallDimensions = {
+            baseScale: 0.8,
+            width: 21,
+            height: 3.6,
+            depth: 14
+        };
+        
+        // 动态更新3D模型
+        function updateModels() {
+            // 清理旧模型
+            scene.remove(hallElement);
+            scene.remove(axesHelper);
+            scene.remove(xLabel);
+            scene.remove(yLabel);
+            scene.remove(zLabel);
+            scene.remove(electricArrow);
+            scene.remove(magneticArrow);
+            
+            // 移除所有电子
+            electrons.forEach(e => {
+                scene.remove(e.mesh);
+                scene.remove(e.trail);
+            });
+            electrons.length = 0;
+            
+            // 重新创建模型（使用新尺寸）
+            createHallElement();
+            createCoordinateSystem();
+            createArrows();
+            createElectrons();
+        }
+        
+        // 霍尔元件模型（使用动态尺寸）
+        let hallElement;
+        function createHallElement() {
+            const hallGeometry = new THREE.BoxGeometry(
+                hallDimensions.width * hallDimensions.baseScale,
+                hallDimensions.height * hallDimensions.baseScale,
+                hallDimensions.depth * hallDimensions.baseScale
+            );
+            
+            // 添加轮廓边缘
+            const edges = new THREE.EdgesGeometry(hallGeometry);
+            const edgeMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x000000, 
+                linewidth: 4 
+            });
+            
+            const hallMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x8e44ad,
+                transparent: true,
+                opacity: 0.4,
+                shininess: 200,
+                specular: 0xffffff,
+                emissive: 0x4a235a,
+                emissiveIntensity: 0.2
+            });
+            
+            hallElement = new THREE.Mesh(hallGeometry, hallMaterial);
+            const hallEdges = new THREE.LineSegments(edges, edgeMaterial);
+            
+            hallElement.castShadow = true;
+            hallElement.receiveShadow = true;
+            hallElement.add(hallEdges);
+            scene.add(hallElement);
+        }
+        
+        // 坐标轴系统（使用动态尺寸）
+        let axesHelper, xLabel, yLabel, zLabel;
+        function createCoordinateSystem() {
+            // 坐标轴大小根据霍尔元件尺寸计算
+            const axesSize = Math.max(
+                hallDimensions.width,
+                hallDimensions.height,
+                hallDimensions.depth
+            ) * 1.5;
+            
+            axesHelper = new THREE.AxesHelper(axesSize);
+            axesHelper.position.set(
+                -hallDimensions.width * hallDimensions.baseScale / 2,
+                -hallDimensions.height * hallDimensions.baseScale / 2,
+                -hallDimensions.depth * hallDimensions.baseScale / 2
+            );
+            axesHelper.lineWidth = 10;
+            scene.add(axesHelper);
+            
+            // 标签位置基于霍尔元件尺寸
+            const halfWidth = hallDimensions.width * hallDimensions.baseScale / 2;
+            const halfHeight = hallDimensions.height * hallDimensions.baseScale / 2;
+            const halfDepth = hallDimensions.depth * hallDimensions.baseScale / 2;
+            
+            xLabel = createAxisLabel('X', new THREE.Vector3(
+                axesSize * 1.2 - halfWidth,
+                -halfHeight,
+                -halfDepth
+            ), '#ff3333', 1.2);
+            
+            yLabel = createAxisLabel('Y', new THREE.Vector3(
+                -halfWidth,
+                axesSize * 1.2 - halfHeight,
+                -halfDepth
+            ), '#33ff33', 1.2);
+            
+            zLabel = createAxisLabel('Z', new THREE.Vector3(
+                -halfWidth,
+                -halfHeight,
+                axesSize * 1.2 - halfDepth
+            ), '#3333ff', 1.2);
+        }
+        
+        // 创建坐标轴标签
+        function createAxisLabel(text, position, color, size = 1.5) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            context.font = `Bold ${72 * size}px Arial`;
+            context.fillStyle = color;
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(text, 128, 64);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true
+            });
+            const sprite = new THREE.Sprite(material);
+            sprite.position.copy(position);
+            sprite.scale.set(2.5 * size, 1.2 * size, 1);
+            scene.add(sprite);
+            return sprite;
+        }
+        
+        // 箭头指示器（使用动态尺寸）
+        let electricArrow, magneticArrow;
+        function createArrows() {
+            const halfWidth = hallDimensions.width * hallDimensions.baseScale / 2;
+            const halfHeight = hallDimensions.height * hallDimensions.baseScale / 2;
+            const halfDepth = hallDimensions.depth * hallDimensions.baseScale / 2;
+            
+            const arrowLength = Math.max(
+                hallDimensions.width,
+                hallDimensions.height,
+                hallDimensions.depth
+            ) * 0.8;
+            
+            electricArrow = new THREE.ArrowHelper(
+                new THREE.Vector3(1, 0, 0),
+                new THREE.Vector3(-halfWidth, 0, 0),
+                arrowLength,
+                0xff4444,
+                1.8,
+                0.9
+            );
+            scene.add(electricArrow);
+            
+            magneticArrow = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(0, -halfHeight, 0),
+                arrowLength * 0.8,
+                0x44ff44,
+                1.8,
+                0.9
+            );
+            scene.add(magneticArrow);
+        }
+        
+        // 电子系统（使用动态尺寸）
+        const electrons = [];
+        function createElectrons() {
+            const halfWidth = hallDimensions.width * hallDimensions.baseScale / 2;
+            const halfHeight = hallDimensions.height * hallDimensions.baseScale / 2;
+            const halfDepth = hallDimensions.depth * hallDimensions.baseScale / 2;
+            
+            const electronGeo = new THREE.SphereBufferGeometry(0.25, 36, 36);
+            const electronMat = new THREE.MeshPhongMaterial({ 
+                color: 0xffff00,
+                emissive: 0xffaa00,
+                emissiveIntensity: 1.2,
+                shininess: 100,
+                specular: 0xffffff
+            });
+            
+            const electronCount = 300;
+            const borderMargin = 0.9; // 电子离边界的距离系数
+            
+            for(let i = 0; i < electronCount; i++) {
+                const electron = new THREE.Mesh(electronGeo, electronMat);
+                electron.position.set(
+                    (Math.random() * halfWidth * 2 - halfWidth) * borderMargin,
+                    (Math.random() * halfHeight * 2 - halfHeight) * borderMargin,
+                    (Math.random() * halfDepth * 2 - halfDepth) * borderMargin
+                );
+                electron.castShadow = true;
+                
+                const trailGeometry = new THREE.BufferGeometry();
+                const trailMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0xff8000,
+                    linewidth: 4,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const trail = new THREE.Line(trailGeometry, trailMaterial);
+                
+                electrons.push({
+                    mesh: electron,
+                    velocity: new THREE.Vector3(),
+                    originalPos: electron.position.clone(),
+                    speed: 0.25 + Math.random() * 0.2,
+                    trail: trail,
+                    trailPositions: []
+                });
+                
+                scene.add(electron);
+                scene.add(trail);
+            }
+        }
+        
+        // 创建初始模型
+        createHallElement();
+        createCoordinateSystem();
+        createArrows();
+        createElectrons();
+        
+        // 材料参数
+        const materials = {
+            silicon: { name: "硅", n: 1.5e15, color: 0x3498db },
+            germanium: { name: "锗", n: 2.4e13, color: 0x8e44ad },
+            gaas: { name: "砷化镓", n: 1e17, color: 0xe74c3c }
+        };
+        
+        // 仿真参数
+        let IH = -50.0;
+        let IM = 400;
+        let thickness = 0.5;
+        let isAutoMode = false;
+        let autoModeTime = 0;
+        
+        // 计算霍尔电压
+        function calculateHallVoltage() {
+            const material = materials[document.getElementById('material').value];
+            const e = 1.602e-19;
+            const B = IM * 1e-3 * 0.03;
+            const d = thickness * 1e-3;
+            
+            const VH = (IH * 1e-3 * B) / (material.n * e * d) * 1e3;
+            return Math.abs(VH).toFixed(2);
+        }
+        
+        // 更新电子运动
+        function updateElectrons() {
+            const halfWidth = hallDimensions.width * hallDimensions.baseScale / 2;
+            const halfHeight = hallDimensions.height * hallDimensions.baseScale / 2;
+            const halfDepth = hallDimensions.depth * hallDimensions.baseScale / 2;
+            
+            electrons.forEach(electron => {
+                const v_drift = IH * 0.05 * electron.speed;
+                electron.velocity.x = v_drift;
+                
+                const F_lorentz = IM * 0.0008 * Math.sign(IH) * electron.speed;
+                electron.velocity.z = F_lorentz;
+                
+                electron.velocity.y = (Math.random() - 0.5) * 0.06;
+                
+                electron.mesh.position.x = electron.originalPos.x + electron.velocity.x;
+                electron.mesh.position.z = electron.originalPos.z + electron.velocity.z;
+                electron.mesh.position.y = electron.originalPos.y + electron.velocity.y;
+                
+                // 检查边界（使用动态尺寸）
+                if(Math.abs(electron.mesh.position.x) > halfWidth) {
+                    electron.mesh.position.x = electron.originalPos.x;
+                }
+                if(Math.abs(electron.mesh.position.z) > halfDepth) {
+                    electron.mesh.position.z = electron.originalPos.z;
+                }
+                if(Math.abs(electron.mesh.position.y) > halfHeight) {
+                    electron.mesh.position.y = electron.originalPos.y;
+                }
+                
+                electron.trailPositions.push(electron.mesh.position.clone());
+                if(electron.trailPositions.length > 60) {
+                    electron.trailPositions.shift();
+                }
+                electron.trail.geometry.setFromPoints(electron.trailPositions);
+            });
+        }
+        
+        // 更新仿真状态
+        function updateSimulation() {
+            const material = materials[document.getElementById('material').value];
+            
+            // 更新电流箭头
+            electricArrow.setDirection(new THREE.Vector3(IH > 0 ? 1 : -1, 0, 0));
+            electricArrow.setColor(IH > 0 ? 0xff4444 : 0x4444ff);
+            
+            // 更新磁场箭头
+            magneticArrow.setDirection(new THREE.Vector3(0, IM > 0 ? 1 : -1, 0));
+            magneticArrow.setColor(IM > 0 ? 0x44ff44 : 0xff44ff);
+            
+            updateElectrons();
+            
+            document.getElementById('vh-display').textContent = calculateHallVoltage();
+            document.getElementById('ih-value').textContent = IH.toFixed(1);
+            document.getElementById('im-value').textContent = IM;
+            document.getElementById('thickness-value').textContent = thickness.toFixed(1);
+        }
+        
+        // 自动模式更新
+        function updateAutoMode(deltaTime) {
+            autoModeTime += deltaTime;
+            IH = 60 * Math.sin(autoModeTime * 0.5);
+            IM = 1200 * Math.sin(autoModeTime * 0.3 + Math.PI/3);
+            document.getElementById('ih-slider').value = IH;
+            document.getElementById('im-slider').value = IM;
+        }
+        
+        // 事件监听 - 厚度变化时更新模型尺寸
+        document.getElementById('thickness-slider').addEventListener('input', function() {
+            thickness = parseFloat(this.value);
+            
+            // 根据厚度更新模型尺寸 (0.1-2mm对应2.0-6.0单位)
+            const newScale = 2 + (thickness - 0.1) * (4 / 1.9); // 线性映射
+            hallDimensions.baseScale = newScale;
+            
+            // 更新所有模型
+            updateModels();
+            updateSimulation();
+        });
+        
+        // 其他事件监听...
+        document.getElementById('ih-slider').addEventListener('input', function() {
+            IH = parseFloat(this.value);
+            if(!isAutoMode) updateSimulation();
+        });
+        
+        document.getElementById('im-slider').addEventListener('input', function() {
+            IM = parseInt(this.value);
+            if(!isAutoMode) updateSimulation();
+        });
+        
+        document.getElementById('material').addEventListener('change', updateSimulation);
+        
+        document.getElementById('auto-btn').addEventListener('click', function() {
+            isAutoMode = true;
+            this.classList.add('mode-active');
+            document.getElementById('manual-btn').classList.remove('mode-active');
+            autoModeTime = 0;
+        });
+        
+        document.getElementById('manual-btn').addEventListener('click', function() {
+            isAutoMode = false;
+            this.classList.add('mode-active');
+            document.getElementById('auto-btn').classList.remove('mode-active');
+            updateSimulation();
+        });
+        
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            IH = -50.0;
+            IM = 400;
+            thickness = 0.5;
+            document.getElementById('ih-slider').value = IH;
+            document.getElementById('im-slider').value = IM;
+            document.getElementById('thickness-slider').value = thickness;
+            document.getElementById('material').value = 'germanium';
+            
+            // 重置模型尺寸
+            hallDimensions.baseScale = 0.8;
+            updateModels();
+            updateSimulation();
+        });
+        
+        document.getElementById('screenshot').addEventListener('click', function() {
+            const link = document.createElement('a');
+            link.download = 'hall-effect-sim.png';
+            link.href = renderer.domElement.toDataURL('image/png');
+            link.click();
+        });
+        
+        // 鼠标控制旋转
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+        
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            if(isDragging) {
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+                
+                camera.position.x -= deltaMove.x * 0.02;
+                camera.position.y += deltaMove.y * 0.02;
+                camera.lookAt(0, 0, 0);
+            }
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+        
+        renderer.domElement.addEventListener('mouseup', () => isDragging = false);
+        renderer.domElement.addEventListener('mouseleave', () => isDragging = false);
+        
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // 动画循环
+        let lastTime = 0;
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            
+            if(isAutoMode) {
+                updateAutoMode(deltaTime);
+            }
+            
+            updateSimulation();
+            renderer.render(scene, camera);
+        }
+        
+        // 启动
+        updateSimulation();
+        animate(0);
+    </script>
+</body>
+</html>
